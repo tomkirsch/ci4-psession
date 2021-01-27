@@ -7,5 +7,10 @@
         "php": ">=7.2",
 		"codeigniter4/framework": "^4",
 		"tomkirsch/samesite":"^1"
-    }
+    },
+	"autoload": {
+        "psr-4": {
+            "Tomkirsch\\Psession\\": "src/"
+        }
+	}
 }
