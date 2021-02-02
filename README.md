@@ -56,7 +56,7 @@ Open up `app/config/App.php` and scroll to session section:
 	public $persistentSessionExpiry		= 86400 * 30 * 1; // 1 month
 	public $disableNoCacheHeaders 		= FALSE; // CI will send no-cache headers when session library is loaded, which might not be what you want...
 ```
-You should also set the samesite cookie attribute:
+You should also set the samesite cookie attribute to Lax:
 ```
 	public $cookieSameSite = 'Lax';
 ```
@@ -111,7 +111,6 @@ class Auth extends Controller{
 			$_SESSION['user_id'] = $user->user_id;
 			// set 'remember me' cookie
 			if($rememberMe){
-				// using Tomkirsch\Samesite\SamesiteResponse:
 				$this->response->setCookie([
 					'name'=>'user_email',
 					'value'=>$user->user_email,

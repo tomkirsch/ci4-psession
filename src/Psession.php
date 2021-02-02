@@ -4,9 +4,6 @@ use CodeIgniter\Session\Session;
 use CodeIgniter\Config\Services;
 use CodeIgniter\Database\BaseBuilder;
 
-use Tomkirsch\Samesite\SamesiteDetector;
-use Tomkirsch\Samesite\SamesiteResponse;
-
 class Psession extends Session{
 	public $debug;
 	
@@ -31,7 +28,6 @@ class Psession extends Session{
 	protected $rememberMe;
 	
 	protected $disableNoCacheHeaders; // enable to control your own cache headers
-	protected $cookieSameSite; // None/Lax/Strict
 	protected $persistentSessionExpiry; // how long persistent sessions last
 	protected $isPersistent = FALSE; // whether we read a persistent session or not. you can use this to beef up security (require login to access credit card etc.)
 	protected $useragent; // string
@@ -58,7 +54,6 @@ class Psession extends Session{
 		$this->tokenCookie 				= $config->tokenCookie ?? 'ci_tok';
 		$this->seriesCookie 			= $config->seriesCookie ?? 'ci_ser';
 		$this->rememberMeCookie 		= $config->rememberMeCookie ?? 'ci_rem';
-		$this->cookieSameSite			= $config->cookieSameSite ?? 'Lax';
 		$this->disableNoCacheHeaders	= $config->disableNoCacheHeaders ?? FALSE;
 		
 		$this->tokenIdField				= $config->tokenIdField ?? 'token_id';
@@ -78,6 +73,9 @@ class Psession extends Session{
 		if(strlen($this->useragent) > 255){
 			$this->useragent = md5($this->useragent);
 		}
+		
+		// load cookie helper
+		helper('cookie');
 	}
 	
 	// getters
@@ -139,7 +137,7 @@ class Psession extends Session{
 			$this->persistentCookies(FALSE);
 		}
 		// set remember me cookie
-		$this->setCookie2($this->rememberMeCookie, $this->rememberMe ? 1 : 0, [
+		$this->setCookieEasy($this->rememberMeCookie, $this->rememberMe ? 1 : 0, [
 			'expires'=>$this->persistentSessionExpiry,
 			'samesite'=>'Lax',
 		]);
@@ -261,7 +259,8 @@ class Psession extends Session{
 		$this->oldSessionData = NULL;
 		$this->isPersistent = FALSE;
 		$this->persistentCookies(FALSE); // unset persistent cookies
-		$this->setCookie2($this->sessionCookieName, session_id(), ['expires'=>1]);
+		// call setcookie directly, in case Response is ditched for some reason
+		setcookie($this->sessionCookieName, session_id(), 1, $this->cookiePath, $this->cookieDomain, $this->cookieSecure, true);
 		session_regenerate_id(FALSE);
 	}
 	
@@ -310,39 +309,18 @@ class Psession extends Session{
 		$expiry = $set ? $this->persistentSessionExpiry : 1;
 		$options = [
 			'expires'=>$expiry, 
-			'samesite'=>'Lax',
+			'samesite'=>$this->cookieSameSite,
 		];
 		// encrypt user id
-		$this->setCookie2($this->userIdCookie, $set ? $this->userId : '', $options);
+		$this->setCookieEasy($this->userIdCookie, $set ? $this->userId : '', $options);
 		// hash token
-		$this->setCookie2($this->tokenCookie, $set ? $this->hashToken($this->token) : '', $options);
+		$this->setCookieEasy($this->tokenCookie, $set ? $this->hashToken($this->token) : '', $options);
 		// series
-		$this->setCookie2($this->seriesCookie, $set ? $this->series : '', $options);
+		$this->setCookieEasy($this->seriesCookie, $set ? $this->series : '', $options);
 	}
 	
-	// override - for cookie
-	protected function configure(){
-		parent::configure();
-		if(SamesiteDetector::isPossible()){
-			session_set_cookie_params([
-				'lifetime'=>$this->sessionExpiration, 
-				'path'=>$this->cookiePath, 
-				'domain'=>$this->cookieDomain, 
-				'secure'=>$this->cookieSecure, 
-				'httponly'=>TRUE, // not accessible by JS
-				'samesite'=>$this->cookieSameSite, // None/Lax/Strict
-			]);
-		}
-	}
-	
-	// override - use SameSite if supported
-	protected function setCookie(){
-		// session ID cookies should be LAX!
-		$this->setCookie2($this->sessionCookieName, session_id(), ['samesite'=>'Lax']);
-	}
-	
-	// set cookies with SameSite attribute for supported PHP version
-	protected function setCookie2($name, $value, $options){
+	// set cookies in Response. Allows us to fall back on default class/config values easily.
+	protected function setCookieEasy($name, $value, $options){
 		$options =  array_merge([
 			'expires'=>0,
 			'path'=>$this->cookiePath,
@@ -351,40 +329,17 @@ class Psession extends Session{
 			'httponly'=>TRUE, // not accessible by JS
 			'samesite'=>$this->cookieSameSite, // None/Lax/Strict
 		], $options);
-		
-		$response = service('response');
-		// can we do samesite in PHP?
-		if(SamesiteDetector::isPossible()){
-			// are we using SamesiteResponse?
-			if(is_a($response, 'SamesiteResponse')){
-				$response->setCookie(
-					$name, 
-					$value, 
-					$options['expires'], 
-					$options['domain'],
-					$options['path'],
-					'', // prefix
-					$options['secure'], 
-					$options['httponly'],
-					$options['samesite']
-				);
-			}else{
-				// just use PHP's setcookie() directly, since CI's response won't handle samesite (yet)
-				setcookie($name, $value, $options);
-			}
-		}else{
-			// samesite not possible in this PHP version. set a normal cookie without this parameter
-			$response->setCookie(
-				$name, 
-				$value, 
-				$options['expires'], 
-				$options['domain'],
-				$options['path'],
-				'', // prefix
-				$options['secure'], 
-				$options['httponly']
-			);
-		}
+		set_cookie(
+			$name, 
+			$value, 
+			$options['expires'], 
+			$options['domain'],
+			$options['path'],
+			'', // prefix
+			$options['secure'], 
+			$options['httponly'],
+			$options['samesite']
+		);
 	}
 	
 	protected function debug(string $msg, $context=[]){
