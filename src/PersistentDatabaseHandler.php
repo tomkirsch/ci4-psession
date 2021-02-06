@@ -58,6 +58,7 @@ class PersistentDatabaseHandler extends DatabaseHandler{
 	
 	// (override) called when session_start() is run
 	public function read($sessionID): string{
+		if(!$this->psession) throw new \Exception('Psession class was not created. Please overwrite Services::session() to return the Psession instance.');
 		$result = '';
 		// try a normal session read using session id
 		if ($this->lockSession($sessionID) === false){
