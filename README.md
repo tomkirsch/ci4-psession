@@ -43,24 +43,27 @@ CREATE TABLE IF NOT EXISTS `users` (
 Don't stress about the password field's case-insensitivity, as it's compared in PHP using password_hash(), NOT in MYSQL.
 
 ### CodeIgniter
-Open up `app/config/App.php` and scroll to session section:
+Open up `app/Config/App.php` and add two new properties:
+
+```
+	public $persistentSessionExpiry	= 86400 * 30 * 1; // 1 month
+	public $disableNoCacheHeaders 	= FALSE; // CI will send no-cache headers when session library is loaded, which might not be what you want...
+```
+Also ensure your session variables are set correctly:
 ```
 	public $sessionDriver            = 'Tomkirsch\Psession\PersistentDatabaseHandler';
 	public $sessionExpiration        = 0; // must be 0 for Psession
 	public $sessionRegenerateDestroy = FALSE; // must be FALSE for Psession
 	public $sessionMatchIP           = FALSE; // recommended to leave FALSE
-	
-	public $sessionCookieName        	= 'ci_session'; // or whatever you'd like
-	public $sessionSavePath          	= 'ci_sessions'; // database table name
-	public $sessionTimeToUpdate      	= 300; // how often to regenerate session id
-	public $persistentSessionExpiry		= 86400 * 30 * 1; // 1 month
-	public $disableNoCacheHeaders 		= FALSE; // CI will send no-cache headers when session library is loaded, which might not be what you want...
+	public $sessionCookieName        = 'ci_session'; // or whatever you'd like
+	public $sessionSavePath          = 'ci_sessions'; // database table name
+	public $sessionTimeToUpdate      = 300; // how often to regenerate session id
+	public $cookieSameSite 			= 'Lax'; // recommended
 ```
-You should also set the samesite cookie attribute to Lax:
+Ensure your encrytion ket is set in `app/Config/Encrypter.php`:
 ```
-	public $cookieSameSite = 'Lax';
+	public $key = 'some string';
 ```
-
 Open up `app/config/Services.php` and overwrite the session function:
 ```
 	public static function session(App $config = null, bool $getShared = true){
