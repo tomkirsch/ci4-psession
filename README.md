@@ -60,6 +60,20 @@ Also ensure your session variables are set correctly:
 	public $sessionTimeToUpdate      = 300; // how often to regenerate session id
 	public $cookieSameSite 			= 'Lax'; // recommended
 ```
+Optional settings based on your database setup:
+```
+	public $sessionTimestamps		= FALSE; // use DATETIME instead of INT
+	public $sessionUserTable 		= 'users';
+	public $sessionUserIdField 		= 'user_id';
+
+	public $tokenTable 				= 'ci_tokens';
+	public $tokenIdField 			= 'token_id';
+	public $tokenValueField 		= 'token_value';
+	public $tokenUserIdField 		= 'user_id';
+	public $tokenSeriesField 		= 'token_series';
+	public $tokenUseragentField 	= 'token_useragent';
+	public $tokenTimestampField 	= 'token_timestamp';
+```
 Ensure your encrytion ket is set in `app/Config/Encrypter.php`:
 ```
 	public $key = 'some string';
