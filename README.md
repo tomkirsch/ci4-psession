@@ -33,10 +33,10 @@ CREATE TABLE IF NOT EXISTS `users` (
   `user_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `user_email` varchar(255) NOT NULL,
   `user_password` varchar(255) NOT NULL,
-  `user_attempts` smallint(5) UNSIGNED NOT NULL,
+  `user_attempts` smallint(5) UNSIGNED DEFAULT 0,
   `user_lastseen` datetime DEFAULT NULL,
   `user_created` datetime NOT NULL,
-  `user_modified` datetime DEFAULT NULL,
+  `user_modified` datetime NOT NULL,
   primary key (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 ```

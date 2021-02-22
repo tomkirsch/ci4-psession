@@ -6,7 +6,7 @@ use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
 
 class PersistentDatabaseHandler extends DatabaseHandler{
-	const USER_ID_FIELD = '__userid__'; // used to alias the user id field to prevent any conflicts
+	const USER_ID_FIELD = '_userid_'; // used to alias the user id field to prevent any conflicts
 	
 	// we must have a reference to the Psession library
 	protected $psession;
