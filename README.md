@@ -11,7 +11,7 @@ Create your DB tables:
 ```
 CREATE TABLE IF NOT EXISTS `ci_sessions` (
   `id` varchar(40) NOT NULL,
-  `user_id` int(10) unsigned DEFAULT NULL,
+  `user_id` int unsigned DEFAULT NULL,
   `ip_address` varchar(45) NOT NULL,
   `timestamp` int unsigned NOT NULL,
   `data` blob,
@@ -67,7 +67,6 @@ Also ensure your session variables are set correctly:
 	public $sessionCookieName        = 'ci_session'; // or whatever you'd like
 	public $sessionSavePath          = 'ci_sessions'; // database table name
 	public $sessionTimeToUpdate      = 300; // how often to regenerate session id
-	public $cookieSameSite 			= 'Lax'; // recommended
 ```
 
 Optional settings based on your database setup:
