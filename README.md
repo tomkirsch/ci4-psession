@@ -1,55 +1,64 @@
 # Psession
+
 This module extend CI's Session and DatabaseHandler classes to provide persistent session functionality.
 
 ## Installation
 
 ### Database
+
 Create your DB tables:
+
 ```
 CREATE TABLE IF NOT EXISTS `ci_sessions` (
-  `id` varchar(40) COLLATE utf8_unicode_ci NOT NULL,
+  `id` varchar(40) NOT NULL,
   `user_id` int(10) unsigned DEFAULT NULL,
-  `ip_address` varchar(45) COLLATE utf8_unicode_ci NOT NULL,
-  `timestamp` int(10) unsigned NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `timestamp` int unsigned NOT NULL,
   `data` blob,
   primary key (id),
   KEY `user_timestamp` (`user_id`,`timestamp`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB
 
 CREATE TABLE IF NOT EXISTS `ci_tokens` (
-  `token_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` int(10) unsigned NOT NULL,
-  `token_series` char(64) COLLATE utf8_unicode_ci NOT NULL,
-  `token_value` char(64) COLLATE utf8_unicode_ci NOT NULL,
-  `token_useragent` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
-  `token_timestamp` int(10) unsigned NOT NULL,
+  `token_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `token_series` char(64) NOT NULL,
+  `token_value` char(64) NOT NULL,
+  `token_useragent` varchar(255) NOT NULL,
+  `token_timestamp` int unsigned NOT NULL,
   primary key (token_id),
   KEY `user_series_useragent` (`user_id`,`token_series`,`token_useragent`(10))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB
 ```
+
 If you don't have some kind of users table, then you can also create this template and modify to suit your needs:
+
 ```
 CREATE TABLE IF NOT EXISTS `users` (
-  `user_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_email` varchar(255) NOT NULL,
   `user_password` varchar(255) NOT NULL,
-  `user_attempts` smallint(5) UNSIGNED DEFAULT 0,
+  `user_attempts` smallint UNSIGNED DEFAULT 0,
   `user_lastseen` datetime DEFAULT NULL,
   `user_created` datetime NOT NULL,
   `user_modified` datetime NOT NULL,
   primary key (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB
 ```
+
 Don't stress about the password field's case-insensitivity, as it's compared in PHP using password_hash(), NOT in MYSQL.
 
 ### CodeIgniter
+
 Open up `app/Config/App.php` and add two new properties:
 
 ```
 	public $persistentSessionExpiry	= 86400 * 30 * 1; // 1 month
 	public $disableNoCacheHeaders 	= FALSE; // CI will send no-cache headers when session library is loaded, which might not be what you want...
 ```
+
 Also ensure your session variables are set correctly:
+
 ```
 	public $sessionDriver            = 'Tomkirsch\Psession\PersistentDatabaseHandler';
 	public $sessionExpiration        = 0; // must be 0 for Psession
@@ -60,7 +69,9 @@ Also ensure your session variables are set correctly:
 	public $sessionTimeToUpdate      = 300; // how often to regenerate session id
 	public $cookieSameSite 			= 'Lax'; // recommended
 ```
+
 Optional settings based on your database setup:
+
 ```
 	public $sessionTimestamps		= FALSE; // use DATETIME instead of INT
 	public $sessionUserTable 		= 'users';
@@ -74,11 +85,15 @@ Optional settings based on your database setup:
 	public $tokenUseragentField 	= 'token_useragent';
 	public $tokenTimestampField 	= 'token_timestamp';
 ```
-Ensure your encrytion ket is set in `app/Config/Encrypter.php`:
+
+Ensure your encrytion ket is set in `app/Config/Encryption.php`:
+
 ```
 	public $key = 'some string';
 ```
+
 Open up `app/config/Services.php` and overwrite the session function:
+
 ```
 	public static function session(App $config = null, bool $getShared = true){
 		if ($getShared){
@@ -100,9 +115,11 @@ Open up `app/config/Services.php` and overwrite the session function:
 		return $session;
 	}
 ```
+
 You can opt to not start the session if you'd like more control over where that happens.
 
 Now use it in your controllers:
+
 ```
 class MyPage extends Controller{
 	function index(){
