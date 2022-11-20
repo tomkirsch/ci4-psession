@@ -67,6 +67,7 @@ Also ensure your session variables are set correctly:
 	public $sessionCookieName        = 'ci_session'; // or whatever you'd like
 	public $sessionSavePath          = 'ci_sessions'; // database table name
 	public $sessionTimeToUpdate      = 300; // how often to regenerate session id
+	public $sessionTimestamps        = TRUE; // use MySQL date instead of int (check your database field type)
 ```
 
 Optional settings based on your database setup:
