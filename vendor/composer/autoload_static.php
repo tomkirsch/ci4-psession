@@ -6,10 +6,6 @@ namespace Composer\Autoload;
 
 class ComposerStaticInit96945fb3975638d46022e46c4c3abe66
 {
-    public static $files = array (
-        '3917c79c5052b270641b5a200963dbc2' => __DIR__ . '/..' . '/kint-php/kint/init.php',
-    );
-
     public static $prefixLengthsPsr4 = array (
         'T' => 
         array (
@@ -22,10 +18,6 @@ class ComposerStaticInit96945fb3975638d46022e46c4c3abe66
         'L' => 
         array (
             'Laminas\\Escaper\\' => 16,
-        ),
-        'K' => 
-        array (
-            'Kint\\' => 5,
         ),
         'C' => 
         array (
@@ -45,10 +37,6 @@ class ComposerStaticInit96945fb3975638d46022e46c4c3abe66
         'Laminas\\Escaper\\' => 
         array (
             0 => __DIR__ . '/..' . '/laminas/laminas-escaper/src',
-        ),
-        'Kint\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/kint-php/kint/src',
         ),
         'CodeIgniter\\' => 
         array (

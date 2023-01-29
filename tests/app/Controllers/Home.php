@@ -28,9 +28,10 @@ class Home extends BaseController
                     $this->session->loginSuccess($user, !empty($post["remember"]));
                     $_SESSION["user_id"] = $user->user_id;
                     $_SESSION["user_email"] = $user->user_email;
-                    print "Logged in";
                 } else {
                     print "Invalid email/PW";
+                    $this->session->destroy();
+                    $_SESSION = [];
                 }
             } else {
                 $this->session->destroy();

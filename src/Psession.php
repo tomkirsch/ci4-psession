@@ -4,66 +4,151 @@ namespace Tomkirsch\Psession;
 
 use CodeIgniter\Session\Session;
 use CodeIgniter\Database\BaseBuilder;
+use CodeIgniter\Encryption\EncrypterInterface;
+use Config\App;
+use SessionHandlerInterface;
 
 class Psession extends Session
 {
-	public $debug;
+	/**
+	 * Whether to log debug messages
+	 */
+	public bool $debug;
 
-	// some kind of user id you can use to identify the owner of the session
-	protected $userIdCookie;
-	protected $userId;
-	protected $userIdField;
+	/**
+	 * User ID cookie name
+	 */
+	protected string $userIdCookie = "ci_uid";
 
-	// tokens exist per-session
-	protected $tokenCookie;
-	protected $tokenIdField;
-	protected $tokenValueField;
-	protected $tokenSeriesField;
-	protected $token;
+	/**
+	 * User ID value
+	 */
+	protected ?string $userId = NULL;
 
-	// series exist as long as possible
-	protected $seriesCookie;
-	protected $series;
+	/**
+	 * User ID field name in database
+	 */
+	protected string $userIdField = "user_id";
 
-	// "remember me" preference
-	protected $rememberMeCookie;
-	protected $rememberMe;
+	/**
+	 * Token cookie name
+	 */
+	protected string $tokenCookie = "ci_tok";
 
-	protected $disableNoCacheHeaders; // enable to control your own cache headers
-	protected $persistentSessionExpiry; // how long persistent sessions last
-	protected $isPersistent = FALSE; // whether we read a persistent session or not. you can use this to beef up security (require login to access credit card etc.)
-	protected $useragent; // string
-	protected $encrypter; // encryption lib
-	protected $oldSessionId; // this flag tells the driver to clean up an older session
-	protected $oldSessionData; // contents of $_SESSION when it got replaced via loadSession()
-	protected $dbData; // data from the database so we can access other information
+	/**
+	 * Token ID field name in database
+	 */
+	protected string $tokenIdField = "token_id";
 
-	public function __construct(\SessionHandlerInterface $driver, $config)
+	/**
+	 * Token ID value
+	 */
+	protected string $tokenValueField = "token_value";
+
+	/**
+	 * Token Series Field name in database
+	 */
+	protected string $tokenSeriesField = "token_series";
+
+	/**
+	 * Token Series value
+	 */
+	protected ?string $token = NULL;
+
+	/**
+	 * Series cookie name
+	 */
+	protected string $seriesCookie = "ci_ser";
+
+	/**
+	 * Series value
+	 */
+	protected ?string $series = NULL;
+
+	/**
+	 * Remember Me cookie name
+	 */
+	protected string $rememberMeCookie = "ci_rem";
+
+	/**
+	 * Remember Me value
+	 */
+	protected bool $rememberMe = FALSE;
+
+	/**
+	 * Disable sending no-cache headers
+	 */
+	protected bool $disableNoCacheHeaders = FALSE;
+
+	/**
+	 * Persistent session expiry time
+	 */
+	protected int $persistentSessionExpiry = 86400 * 30 * 1; // 1 month;
+
+	/**
+	 * Whether we read a persistent session or not. you can use this to beef up security (require login to access credit card etc.)
+	 */
+	protected bool $isPersistent = FALSE;
+
+	/**
+	 * User agent string
+	 */
+	protected string $useragent = "";
+
+	/**
+	 * Encryption lib
+	 */
+	protected EncrypterInterface $encrypter;
+
+	/**
+	 * Old session ID (for garbage collection)
+	 */
+	protected ?string $oldSessionId = NULL;
+
+	/**
+	 * contents of $_SESSION when it got replaced via loadSession()
+	 */
+	protected ?array $oldSessionData = NULL;
+
+	/**
+	 * Data from the database so we can access other information
+	 */
+	protected ?array $dbData;
+
+	/**
+	 * Override driver type hinting
+	 * @var PersistentDatabaseHandler
+	 */
+	protected $driver;
+
+	public function __construct(SessionHandlerInterface $driver, App $config)
 	{
-		$this->debug = $config->sessionDebug ?? FALSE;
-		// ensure certain config elements are set properly for this to work properly
-		$config->sessionRegenerateDestroy 	= FALSE;
-		$config->sessionMatchIP 			= FALSE;
-		$config->sessionExpiration 			= 0;
-		parent::__construct($driver, $config);
-
-		// ensure we use the custom database driver
-		if (!$this->driver instanceof PersistentDatabaseHandler) {
-			throw new \Exception('Psession: Handler "' . $this->sessionDriverName . '" is not  PersistentDatabaseHandler. Please set in $config->sessionDriver');
-			return;
+		if (!$driver instanceof PersistentDatabaseHandler) {
+			throw new \Exception('Driver must be an instance of PersistentDatabaseHandler');
 		}
 
-		$this->userIdCookie 			= $config->userIdCookie ?? 'ci_uid';
-		$this->tokenCookie 				= $config->tokenCookie ?? 'ci_tok';
-		$this->seriesCookie 			= $config->seriesCookie ?? 'ci_ser';
-		$this->rememberMeCookie 		= $config->rememberMeCookie ?? 'ci_rem';
-		$this->disableNoCacheHeaders	= $config->disableNoCacheHeaders ?? FALSE;
+		/** @var PsessionConfig|null $pConfig */
+		$pConfig = config('PsessionConfig') ?? new PsessionConfig();
+		$this->debug = $pConfig->debug ?? FALSE;
 
-		$this->tokenIdField				= $config->tokenIdField ?? 'token_id';
-		$this->tokenValueField 			= $config->tokenValueField ?? 'token_value';
-		$this->tokenSeriesField 		= $config->tokenSeriesField ?? 'token_series';
-		$this->persistentSessionExpiry 	= $config->persistentSessionExpiry ?? 86400 * 30 * 1; // 1 month
-		$this->userIdField 				= $config->sessionUserIdField ?? 'user_id';
+		// call parent constructor
+		parent::__construct($driver, $config);
+
+		// ensure certain session config elements are set properly for this lib to work
+		$this->sessionRegenerateDestroy 	= FALSE;
+		$this->sessionMatchIP 				= FALSE;
+		$this->sessionExpiration 			= 0;
+
+		$this->userIdCookie 			??= $pConfig->userIdCookie;
+		$this->tokenCookie 				??= $pConfig->tokenCookie;
+		$this->seriesCookie 			??= $pConfig->seriesCookie;
+		$this->rememberMeCookie 		??= $pConfig->rememberMeCookie;
+		$this->disableNoCacheHeaders	??= $pConfig->disableNoCacheHeaders;
+		$this->tokenIdField				??= $pConfig->tokenIdField;
+		$this->tokenValueField 			??= $pConfig->tokenValueField;
+		$this->tokenSeriesField 		??= $pConfig->tokenSeriesField;
+		$this->persistentSessionExpiry 	??= $pConfig->persistentSessionExpiry;
+		$this->userIdField 				??= $pConfig->userIdField;
 
 		// give driver a reference to $this
 		$this->driver->registerSession($this);
@@ -71,7 +156,7 @@ class Psession extends Session
 		$this->encrypter = service('encrypter');
 
 		// read the useragent
-		$this->useragent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'none'; // fallback for CLI
+		$this->useragent = $_SERVER['HTTP_USER_AGENT'] ?? ''; // fallback for CLI
 		// if, for some reason this exceeds the limit, we'll just md5 hash it instead of truncating and possibly duplicating values
 		if (strlen($this->useragent) > 255) {
 			$this->useragent = md5($this->useragent);
@@ -88,7 +173,7 @@ class Psession extends Session
 
 	// perform query builder selects/joins to get a session in your custom app
 	// IMPORTANT: you must call the $builder->where('user_password', $pass) or whatever to find your user!!!
-	public function findSession($builder = NULL): BaseBuilder
+	public function findSession(?BaseBuilder $builder = NULL): BaseBuilder
 	{
 		return $this->driver->prepBuilder($builder, FALSE, $this->useragent);
 	}
@@ -119,7 +204,7 @@ class Psession extends Session
 	}
 
 	// call this ONLY when user successfully logs in via Controller
-	public function loginSuccess($row, $rememberMe = FALSE)
+	public function loginSuccess($row, bool $rememberMe = FALSE)
 	{
 		$this->rememberMe = empty($rememberMe) ? FALSE : TRUE; // ensure we have a true boolean
 		// store data
@@ -274,7 +359,7 @@ class Psession extends Session
 	// called whenever a db row is loaded into the current session. token/series may NOT be present.
 	protected function loadRow($row)
 	{
-		$this->dbData = $row;
+		$this->dbData = (array) $row;
 		if (empty($row->{PersistentDatabaseHandler::USER_ID_FIELD})) {
 			throw new \Exception("Psession::loadRow() - data has invalid " . PersistentDatabaseHandler::USER_ID_FIELD . " field. Ensure you are using Psession::findSession() method when searching for record.");
 		}
@@ -293,7 +378,7 @@ class Psession extends Session
 
 	// generates a random token
 	// IMPORTANT: the resulting string will be DOUBLE the length given
-	protected function randomToken($length = 32): string
+	protected function randomToken(int $length = 32): string
 	{
 		if (empty($length) || intval($length) <= 8) {
 			$length = 32;
@@ -316,7 +401,7 @@ class Psession extends Session
 	}
 
 	// set or unset persistent cookie data
-	protected function persistentCookies($set)
+	protected function persistentCookies(bool $set)
 	{
 		$expiry = $set ? $this->persistentSessionExpiry : 1;
 		$options = [
@@ -332,7 +417,7 @@ class Psession extends Session
 	}
 
 	// set cookies in Response. Allows us to fall back on default class/config values easily.
-	protected function setCookieEasy($name, $value, $options)
+	protected function setCookieEasy(string $name, string $value, array $options)
 	{
 		helper("cookie");
 		$options =  array_merge([

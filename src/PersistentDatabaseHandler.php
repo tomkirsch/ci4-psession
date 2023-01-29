@@ -2,52 +2,57 @@
 
 namespace Tomkirsch\Psession;
 
-use CodeIgniter\Config\BaseConfig;
 use CodeIgniter\Session\Handlers\DatabaseHandler;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
+use Config\App as AppConfig;
 
 class PersistentDatabaseHandler extends DatabaseHandler
 {
-	const USER_ID_FIELD = 'PSESSION_USERID'; // used to alias the user id field to prevent any conflicts
+	const USER_ID_FIELD = '__psession_userid'; // used to alias the user id field to prevent any conflicts
 
-	// we must have a reference to the Psession library
-	protected $psession;
+	/**
+	 * Psession instance
+	 */
+	protected Psession $psession;
 
-	protected $tokenTable;
-	protected $userTable;
-	protected $userIdField;
-	protected $tokenIdField;
-	protected $tokenValueField;
-	protected $tokenUserIdField;
-	protected $tokenSeriesField;
-	protected $tokenUseragentField;
-	protected $tokenTimestampField;
-	protected $persistentSessionExpiry;
+	protected string $tokenTable;
+	protected string $usersTable;
+	protected string $userIdField;
+	protected string $tokenIdField;
+	protected string $tokenValueField;
+	protected string $tokenUserIdField;
+	protected string $tokenSeriesField;
+	protected string $tokenUseragentField;
+	protected string $tokenTimestampField;
+	protected int $persistentSessionExpiry;
 
 	// use INT or DATETIME
-	protected $useTimestamps;
+	protected bool $useTimestamps;
 
-	protected $writeTokenFlag = FALSE;
+	protected bool $writeTokenFlag = FALSE;
 	protected $tokenId; // autoincrement ID of the token db row
 
-	public function __construct(BaseConfig $config, string $ipAddress)
+	public function __construct(AppConfig $config, string $ipAddress)
 	{
 		parent::__construct($config, $ipAddress);
 
-		$this->userTable 			= $config->sessionUserTable ?? 'users';
-		$this->userIdField 			= $config->sessionUserIdField ?? 'user_id';
+		/** @var PsessionConfig|null $pConfig */
+		$pConfig = config('PsessionConfig') ?? new PsessionConfig();
 
-		$this->tokenTable 			= $config->tokenTable ?? 'ci_tokens';
-		$this->tokenIdField			= $config->tokenIdField ?? 'token_id';
-		$this->tokenValueField 		= $config->tokenValueField ?? 'token_value';
-		$this->tokenUserIdField 	= $config->tokenUserIdField ?? 'user_id';
-		$this->tokenSeriesField 	= $config->tokenSeriesField ?? 'token_series';
-		$this->tokenUseragentField 	= $config->tokenUseragentField ?? 'token_useragent';
-		$this->tokenTimestampField 	= $config->tokenTimestampField ?? 'token_timestamp';
-		$this->useTimestamps 		= $config->sessionTimestamps ?? TRUE;
+		$this->usersTable 			= $pConfig->usersTable ?? 'users';
+		$this->userIdField 			= $pConfig->userIdField ?? 'user_id';
 
-		$this->persistentSessionExpiry 	= $config->persistentSessionExpiry ?? 86400 * 30 * 1; // 1 month
+		$this->tokenTable 			= $pConfig->tokenTable ?? 'ci_tokens';
+		$this->tokenIdField			= $pConfig->tokenIdField ?? 'token_id';
+		$this->tokenValueField 		= $pConfig->tokenValueField ?? 'token_value';
+		$this->tokenUserIdField 	= $pConfig->tokenUserIdField ?? 'user_id';
+		$this->tokenSeriesField 	= $pConfig->tokenSeriesField ?? 'token_series';
+		$this->tokenUseragentField 	= $pConfig->tokenUseragentField ?? 'token_useragent';
+		$this->tokenTimestampField 	= $pConfig->tokenTimestampField ?? 'token_timestamp';
+		$this->useTimestamps 		= $pConfig->useTimestamps ?? TRUE;
+
+		$this->persistentSessionExpiry 	= $pConfig->persistentSessionExpiry ?? 86400 * 30 * 1; // 1 month
 	}
 
 	// save reference of the session lib instance
@@ -63,7 +68,7 @@ class PersistentDatabaseHandler extends DatabaseHandler
 	}
 
 	// (override) called when session_start() is run
-	public function read($sessionID): string
+	public function read($sessionID)
 	{
 		if (!$this->psession) throw new \Exception('Psession class was not created. Please overwrite Services::session() to return the Psession instance.');
 		$result = '';
@@ -156,7 +161,7 @@ class PersistentDatabaseHandler extends DatabaseHandler
 	}
 
 	// (override) garbage collection
-	public function gc($maxlifetime): bool
+	public function gc($maxlifetime)
 	{
 		// clean up tokens
 
@@ -193,14 +198,14 @@ class PersistentDatabaseHandler extends DatabaseHandler
 	}
 
 	// perform active record calls to get a session. Can be used to get session data in your App - see Psession::findSession()
-	public function prepBuilder($builder, $persistent, $useragent, $userIdCookie = NULL, $seriesCookie = NULL): BaseBuilder
+	public function prepBuilder(?BaseBuilder $builder, bool $persistent, string $useragent, ?string $userIdCookie = NULL, ?string $seriesCookie = NULL): BaseBuilder
 	{
 		// use a correlated subquery to get the MOST RECENT session based on timestamp
 		// we reference the user table inside, so this join must occur AFTER the user table is FROMed or JOINed
 		$subquery = $this->db->table($this->table);
 		$subquery
 			->select("$this->table.id")
-			->where("$this->table.$this->userIdField", "$this->userTable.$this->userIdField", FALSE)
+			->where("$this->table.$this->userIdField", "$this->usersTable.$this->userIdField", FALSE)
 			->orderBy("$this->table.timestamp", 'DESC')
 			->limit(1);
 		$recentSessionJoin = $subquery->getCompiledSelect();
@@ -208,23 +213,23 @@ class PersistentDatabaseHandler extends DatabaseHandler
 		// our main table depends on if we're looking at a persistent login request or not
 		// was a builder supplied? if not, use our own
 		if ($builder === NULL) {
-			$builder = $this->db->table($persistent ? $this->tokenTable : $this->userTable);
+			$builder = $this->db->table($persistent ? $this->tokenTable : $this->usersTable);
 		} else {
-			$builder->table($persistent ? $this->tokenTable : $this->userTable);
+			$builder->from($persistent ? $this->tokenTable : $this->usersTable);
 		}
 
 		$builder
 			->select($this->table . '.*, ' . $this->tokenTable . '.*')
 			// IMPORTANT: ensure we select the user table LAST in case we LEFT JOINed a session/token table and didn't find user_id!
-			->select($this->userTable . '.*')
-			->select($this->userTable . '.' . $this->userIdField . ' AS ' . self::USER_ID_FIELD) // prevent naming conflicts
+			->select($this->usersTable . '.*')
+			->select($this->usersTable . '.' . $this->userIdField . ' AS ' . self::USER_ID_FIELD) // prevent naming conflicts
 		;
 		// determine our critera to join
 		if ($persistent) {
 			// match the user and series from cookie, and we'll authenticate the token later
 			// the useragent lets us have multiple tokens for a single user using different browsers
 			$builder
-				->join($this->userTable, "$this->userTable.$this->userIdField = $this->tokenTable.$this->tokenUserIdField", 'inner')
+				->join($this->usersTable, "$this->usersTable.$this->userIdField = $this->tokenTable.$this->tokenUserIdField", 'inner')
 				->where("$this->tokenTable.$this->tokenUserIdField", $userIdCookie)
 				->where("$this->tokenTable.$this->tokenSeriesField", $seriesCookie)
 				->where("$this->tokenTable.$this->tokenUseragentField", $useragent)
@@ -232,7 +237,7 @@ class PersistentDatabaseHandler extends DatabaseHandler
 				->limit(1);
 		} else {
 			// left join the possible token
-			$builder->join($this->tokenTable, "$this->tokenTable.$this->tokenUserIdField = $this->userTable.$this->userIdField AND $this->tokenTable.$this->tokenUseragentField = " . $this->db->escape($useragent), 'left', FALSE);
+			$builder->join($this->tokenTable, "$this->tokenTable.$this->tokenUserIdField = $this->usersTable.$this->userIdField AND $this->tokenTable.$this->tokenUseragentField = " . $this->db->escape($useragent), 'left', FALSE);
 		}
 
 		// now join our subquery to get most recent session
@@ -240,9 +245,9 @@ class PersistentDatabaseHandler extends DatabaseHandler
 		return $builder;
 	}
 
-	public function deleteToken($tokenId)
+	public function deleteToken(string $tokenId)
 	{
-		$this->db->table($this->tokenTable)->where($this->tokenIdField, $tokenId)->delete();
+		return $this->db->table($this->tokenTable)->where($this->tokenIdField, $tokenId)->delete();
 	}
 
 	// clean old session if the ID was regenerated
@@ -264,10 +269,11 @@ class PersistentDatabaseHandler extends DatabaseHandler
 			$this->tokenTimestampField	=> $this->now(),
 		]);
 		if (empty($this->tokenId)) {
-			$builder->insert();
+			$result = $builder->insert();
 			$this->tokenId = $this->db->insertID();
+			return $result;
 		} else {
-			$builder->where($this->tokenIdField, $this->tokenId)->update();
+			return $builder->where($this->tokenIdField, $this->tokenId)->update();
 		}
 	}
 

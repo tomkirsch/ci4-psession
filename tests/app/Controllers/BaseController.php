@@ -8,6 +8,7 @@ use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Psr\Log\LoggerInterface;
+use Tomkirsch\Psession\Psession;
 
 /**
  * Class BaseController
@@ -37,7 +38,7 @@ abstract class BaseController extends Controller
      */
     protected $helpers = [];
 
-    protected $session;
+    protected Psession $session;
 
     /**
      * Constructor.

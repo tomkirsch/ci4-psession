@@ -3,6 +3,7 @@
 namespace Config;
 
 use CodeIgniter\Config\BaseService;
+use Tomkirsch\Psession\Psession;
 
 /**
  * Services Configuration file.
@@ -21,18 +22,20 @@ class Services extends BaseService
 {
     public static function session(App $config = null, bool $getShared = true)
     {
+        $config ??= config('App');
         if ($getShared) {
             return static::getSharedInstance('session', $config);
         }
-        if (!is_object($config)) {
-            $config = config(App::class);
-        }
+
+        /** @var Session|null $sessionConfig */
+        $sessionConfig = config('Session');
+
         $logger = static::logger();
-        $driverName = $config->sessionDriver;
+        $driverName = $sessionConfig->driver;
         $driver     = new $driverName($config, static::request()->getIpAddress());
         $driver->setLogger($logger);
 
-        $session = new \Tomkirsch\Psession\Psession($driver, $config);
+        $session = new Psession($driver, $config);
         $session->setLogger($logger);
         if (session_status() === PHP_SESSION_NONE) {
             $session->start();
