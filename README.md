@@ -50,41 +50,14 @@ Don't stress about the password field's case-insensitivity, as it's compared in 
 
 ### CodeIgniter
 
-Open up `app/Config/App.php` and add two new properties:
+Open `App\Config\Session.php` and set the driver / table name. Note that $expiration and $regenerateDestroy will be overwritten, and thus have no effect.
 
 ```
-	public $persistentSessionExpiry	= 86400 * 30 * 1; // 1 month
-	public $disableNoCacheHeaders 	= FALSE; // CI will send no-cache headers when session library is loaded, which might not be what you want...
+public string $driver = \Tomkirsch\Psession\PersistentDatabaseHandler::class;
+public string $savePath = 'YOUR_DB_TABLE';
 ```
 
-Also ensure your session variables are set correctly:
-
-```
-	public $sessionDriver            = 'Tomkirsch\Psession\PersistentDatabaseHandler';
-	public $sessionExpiration        = 0; // must be 0 for Psession
-	public $sessionRegenerateDestroy = FALSE; // must be FALSE for Psession
-	public $sessionMatchIP           = FALSE; // recommended to leave FALSE
-	public $sessionCookieName        = 'ci_session'; // or whatever you'd like
-	public $sessionSavePath          = 'ci_sessions'; // database table name
-	public $sessionTimeToUpdate      = 300; // how often to regenerate session id
-	public $sessionTimestamps        = TRUE; // use MySQL date instead of int (check your database field type)
-```
-
-Optional settings based on your database setup:
-
-```
-	public $sessionTimestamps		= FALSE; // use DATETIME instead of INT
-	public $sessionUserTable 		= 'users';
-	public $sessionUserIdField 		= 'user_id';
-
-	public $tokenTable 				= 'ci_tokens';
-	public $tokenIdField 			= 'token_id';
-	public $tokenValueField 		= 'token_value';
-	public $tokenUserIdField 		= 'user_id';
-	public $tokenSeriesField 		= 'token_series';
-	public $tokenUseragentField 	= 'token_useragent';
-	public $tokenTimestampField 	= 'token_timestamp';
-```
+Copy `PsessionConfig.php` into `App\Config` and modify the values to suit your needs (table names, field names, etc)
 
 Ensure your encrytion ket is set in `app/Config/Encryption.php`:
 
@@ -92,28 +65,33 @@ Ensure your encrytion ket is set in `app/Config/Encryption.php`:
 	public $key = 'some string';
 ```
 
+Ensure your database connection it set up in .env
+
 Open up `app/config/Services.php` and overwrite the session function:
 
 ```
-	public static function session(App $config = null, bool $getShared = true){
-		if ($getShared){
-			return static::getSharedInstance('session', $config);
-		}
-		if (! is_object($config)){
-			$config = config(App::class);
-		}
-		$logger = static::logger();
-		$driverName = $config->sessionDriver;
-		$driver     = new $driverName($config, static::request()->getIpAddress());
-		$driver->setLogger($logger);
+	public static function session(App $config = null, bool $getShared = true)
+    {
+        $config ??= config('App');
+        if ($getShared) {
+            return static::getSharedInstance('session', $config);
+        }
 
-		$session = new \Tomkirsch\Psession\Psession($driver, $config);
-		$session->setLogger($logger);
-		if (session_status() === PHP_SESSION_NONE){
-			$session->start();
-		}
-		return $session;
-	}
+        /** @var Session|null $sessionConfig */
+        $sessionConfig = config('Session');
+
+        $logger = static::logger();
+        $driverName = $sessionConfig->driver;
+        $driver     = new $driverName($config, static::request()->getIpAddress());
+        $driver->setLogger($logger);
+
+        $session = new Psession($driver, $config);
+        $session->setLogger($logger);
+        if (session_status() === PHP_SESSION_NONE) {
+            $session->start();
+        }
+        return $session;
+    }
 ```
 
 You can opt to not start the session if you'd like more control over where that happens.
@@ -132,7 +110,7 @@ class MyPage extends Controller{
 }
 
 class Auth extends Controller{
-	protected function doLogin($email, $password, $rememberMe){
+	protected function doLogin(string $email, string $password, bool $rememberMe){
 		$session = service('session');
 		// include session data, and find by email
 		$user = $session->findSession()->where('user_email', $email)->get()->getFirstRow();
