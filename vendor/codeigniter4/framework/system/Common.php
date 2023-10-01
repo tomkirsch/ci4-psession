@@ -10,6 +10,7 @@
  */
 
 use CodeIgniter\Cache\CacheInterface;
+use CodeIgniter\Config\BaseConfig;
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Cookie\Cookie;
 use CodeIgniter\Cookie\CookieStore;
@@ -20,6 +21,7 @@ use CodeIgniter\Debug\Timer;
 use CodeIgniter\Files\Exceptions\FileNotFoundException;
 use CodeIgniter\HTTP\CLIRequest;
 use CodeIgniter\HTTP\Exceptions\HTTPException;
+use CodeIgniter\HTTP\Exceptions\RedirectException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
@@ -31,6 +33,7 @@ use CodeIgniter\Session\Session;
 use CodeIgniter\Test\TestLogger;
 use Config\App;
 use Config\Database;
+use Config\DocTypes;
 use Config\Logger;
 use Config\Services;
 use Config\View;
@@ -47,8 +50,7 @@ if (! function_exists('app_timezone')) {
      */
     function app_timezone(): string
     {
-        /** @var App $config */
-        $config = config('App');
+        $config = config(App::class);
 
         return $config->appTimezone;
     }
@@ -64,8 +66,8 @@ if (! function_exists('cache')) {
      *    cache()->save('foo', 'bar');
      *    $foo = cache('bar');
      *
-     * @return CacheInterface|mixed
-     * @phpstan-return ($key is null ? CacheInterface : mixed)
+     * @return array|bool|CacheInterface|float|int|object|string|null
+     * @phpstan-return ($key is null ? CacheInterface : array|bool|float|int|object|string|null)
      */
     function cache(?string $key = null)
     {
@@ -90,7 +92,11 @@ if (! function_exists('clean_path')) {
     function clean_path(string $path): string
     {
         // Resolve relative paths
-        $path = realpath($path) ?: $path;
+        try {
+            $path = realpath($path) ?: $path;
+        } catch (ErrorException|ValueError $e) {
+            $path = 'error file path: ' . urlencode($path);
+        }
 
         switch (true) {
             case strpos($path, APPPATH) === 0:
@@ -199,7 +205,12 @@ if (! function_exists('config')) {
     /**
      * More simple way of getting config instances from Factories
      *
-     * @return object|null
+     * @template ConfigTemplate of BaseConfig
+     *
+     * @param class-string<ConfigTemplate>|string $name
+     *
+     * @return ConfigTemplate|null
+     * @phpstan-return ($name is class-string<ConfigTemplate> ? ConfigTemplate : object|null)
      */
     function config(string $name, bool $getShared = true)
     {
@@ -460,28 +471,28 @@ if (! function_exists('force_https')) {
      *
      * @see https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
      *
-     * @param int               $duration How long should the SSL header be set for? (in seconds)
-     *                                    Defaults to 1 year.
-     * @param RequestInterface  $request
-     * @param ResponseInterface $response
+     * @param int $duration How long should the SSL header be set for? (in seconds)
+     *                      Defaults to 1 year.
      *
      * @throws HTTPException
+     * @throws RedirectException
      */
-    function force_https(int $duration = 31_536_000, ?RequestInterface $request = null, ?ResponseInterface $response = null)
-    {
-        if ($request === null) {
-            $request = Services::request(null, true);
-        }
+    function force_https(
+        int $duration = 31_536_000,
+        ?RequestInterface $request = null,
+        ?ResponseInterface $response = null
+    ) {
+        $request ??= Services::request();
 
         if (! $request instanceof IncomingRequest) {
             return;
         }
 
-        if ($response === null) {
-            $response = Services::response(null, true);
-        }
+        $response ??= Services::response();
 
-        if ((ENVIRONMENT !== 'testing' && (is_cli() || $request->isSecure())) || (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'test')) {
+        if ((ENVIRONMENT !== 'testing' && (is_cli() || $request->isSecure()))
+            || $request->getServer('HTTPS') === 'test'
+        ) {
             return; // @codeCoverageIgnore
         }
 
@@ -491,7 +502,7 @@ if (! function_exists('force_https')) {
             Services::session(null, true)->regenerate(); // @codeCoverageIgnore
         }
 
-        $baseURL = config('App')->baseURL;
+        $baseURL = config(App::class)->baseURL;
 
         if (strpos($baseURL, 'https://') === 0) {
             $authority = substr($baseURL, strlen('https://'));
@@ -510,13 +521,14 @@ if (! function_exists('force_https')) {
         );
 
         // Set an HSTS header
-        $response->setHeader('Strict-Transport-Security', 'max-age=' . $duration);
-        $response->redirect($uri);
-        $response->sendHeaders();
+        $response->setHeader('Strict-Transport-Security', 'max-age=' . $duration)
+            ->redirect($uri)
+            ->setStatusCode(307)
+            ->setBody('')
+            ->getCookieStore()
+            ->clear();
 
-        if (ENVIRONMENT !== 'testing') {
-            exit(); // @codeCoverageIgnore
-        }
+        throw new RedirectException($response);
     }
 }
 
@@ -734,11 +746,7 @@ if (! function_exists('is_windows')) {
             $mocked = $mock;
         }
 
-        if (isset($mocked)) {
-            return $mocked;
-        }
-
-        return DIRECTORY_SEPARATOR === '\\';
+        return $mocked ?? DIRECTORY_SEPARATOR === '\\';
     }
 }
 
@@ -807,11 +815,12 @@ if (! function_exists('model')) {
     /**
      * More simple way of getting model instances from Factories
      *
-     * @template T of Model
+     * @template ModelTemplate of Model
      *
-     * @param class-string<T> $name
+     * @param class-string<ModelTemplate>|string $name
      *
-     * @return T
+     * @return ModelTemplate|null
+     * @phpstan-return ($name is class-string<ModelTemplate> ? ModelTemplate : object|null)
      */
     function model(string $name, bool $getShared = true, ?ConnectionInterface &$conn = null)
     {
@@ -859,7 +868,7 @@ if (! function_exists('redirect')) {
      *
      * If more control is needed, you must use $response->redirect explicitly.
      *
-     * @param string $route
+     * @param string|null $route Route name or Controller::method
      */
     function redirect(?string $route = null): RedirectResponse
     {
@@ -877,11 +886,21 @@ if (! function_exists('_solidus')) {
     /**
      * Generates the solidus character (`/`) depending on the HTML5 compatibility flag in `Config\DocTypes`
      *
+     * @param DocTypes|null $docTypesConfig New config. For testing purpose only.
+     *
      * @internal
      */
-    function _solidus(): string
+    function _solidus(?DocTypes $docTypesConfig = null): string
     {
-        if (config('DocTypes')->html5 ?? false) {
+        static $docTypes = null;
+
+        if ($docTypesConfig !== null) {
+            $docTypes = $docTypesConfig;
+        }
+
+        $docTypes ??= new DocTypes();
+
+        if ($docTypes->html5 ?? false) {
             return '';
         }
 
@@ -941,18 +960,18 @@ if (! function_exists('response')) {
 
 if (! function_exists('route_to')) {
     /**
-     * Given a controller/method string and any params,
+     * Given a route name or controller/method string and any params,
      * will attempt to build the relative URL to the
      * matching route.
      *
      * NOTE: This requires the controller/method to
      * have a route defined in the routes Config file.
      *
-     * @param string     $method    Named route or Controller::method
+     * @param string     $method    Route name or Controller::method
      * @param int|string ...$params One or more parameters to be passed to the route.
      *                              The last parameter allows you to set the locale.
      *
-     * @return false|string
+     * @return false|string The route (URI path relative to baseURL) or false if not found.
      */
     function route_to(string $method, ...$params)
     {
@@ -968,8 +987,6 @@ if (! function_exists('session')) {
      * Examples:
      *    session()->set('foo', 'bar');
      *    $foo = session('bar');
-     *
-     * @param string $val
      *
      * @return array|bool|float|int|object|Session|string|null
      * @phpstan-return ($val is null ? Session : array|bool|float|int|object|string|null)
@@ -998,11 +1015,9 @@ if (! function_exists('service')) {
      *  - $timer = service('timer')
      *  - $timer = \CodeIgniter\Config\Services::timer();
      *
-     * @param mixed ...$params
-     *
-     * @return object
+     * @param array|bool|float|int|object|string|null ...$params
      */
-    function service(string $name, ...$params)
+    function service(string $name, ...$params): ?object
     {
         return Services::$name(...$params);
     }
@@ -1012,11 +1027,9 @@ if (! function_exists('single_service')) {
     /**
      * Always returns a new instance of the class.
      *
-     * @param mixed ...$params
-     *
-     * @return object|null
+     * @param array|bool|float|int|object|string|null ...$params
      */
-    function single_service(string $name, ...$params)
+    function single_service(string $name, ...$params): ?object
     {
         $service = Services::serviceExists($name);
 
@@ -1060,7 +1073,7 @@ if (! function_exists('slash_item')) {
      */
     function slash_item(string $item): ?string
     {
-        $config = config('App');
+        $config = config(App::class);
 
         if (! property_exists($config, $item)) {
             return null;
@@ -1162,10 +1175,8 @@ if (! function_exists('view')) {
      */
     function view(string $name, array $data = [], array $options = []): string
     {
-        /** @var CodeIgniter\View\View $renderer */
         $renderer = Services::renderer();
 
-        /** @var \CodeIgniter\Config\View $config */
         $config   = config(View::class);
         $saveData = $config->saveData;
 

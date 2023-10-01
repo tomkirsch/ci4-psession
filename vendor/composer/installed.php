@@ -3,7 +3,7 @@
         'name' => 'tomkirsch/psession',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '60569f9a9dc9d601bae9a5b6f5f14f5382b5e4da',
+        'reference' => 'f8b1b581f0e49bcb50a3872fb1f1ba2e0183bc23',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'codeigniter4/framework' => array(
-            'pretty_version' => 'v4.3.1',
-            'version' => '4.3.1.0',
-            'reference' => 'b1e5c64ce50757397ff77dd277e3273567df5b4b',
+            'pretty_version' => 'v4.4.1',
+            'version' => '4.4.1.0',
+            'reference' => '844616ef291ca07b726c1aaca552e16aadc3ceeb',
             'type' => 'project',
             'install_path' => __DIR__ . '/../codeigniter4/framework',
             'aliases' => array(),
@@ -40,7 +40,7 @@
         'tomkirsch/psession' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '60569f9a9dc9d601bae9a5b6f5f14f5382b5e4da',
+            'reference' => 'f8b1b581f0e49bcb50a3872fb1f1ba2e0183bc23',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

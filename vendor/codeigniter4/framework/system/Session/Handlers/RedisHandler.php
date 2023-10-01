@@ -13,7 +13,6 @@ namespace CodeIgniter\Session\Handlers;
 
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Session\Exceptions\SessionException;
-use Config\App as AppConfig;
 use Config\Session as SessionConfig;
 use Redis;
 use RedisException;
@@ -24,7 +23,8 @@ use ReturnTypeWillChange;
  */
 class RedisHandler extends BaseHandler
 {
-    private const DEFAULT_PORT = 6379;
+    private const DEFAULT_PORT     = 6379;
+    private const DEFAULT_PROTOCOL = 'tcp';
 
     /**
      * phpRedis instance
@@ -66,28 +66,16 @@ class RedisHandler extends BaseHandler
      *
      * @throws SessionException
      */
-    public function __construct(AppConfig $config, string $ipAddress)
+    public function __construct(SessionConfig $config, string $ipAddress)
     {
         parent::__construct($config, $ipAddress);
 
-        /** @var SessionConfig|null $session */
-        $session = config('Session');
-
         // Store Session configurations
-        if ($session instanceof SessionConfig) {
-            $this->sessionExpiration = empty($session->expiration)
-                ? (int) ini_get('session.gc_maxlifetime')
-                : (int) $session->expiration;
-            // Add sessionCookieName for multiple session cookies.
-            $this->keyPrefix .= $session->cookieName . ':';
-        } else {
-            // `Config/Session.php` is absence
-            $this->sessionExpiration = empty($config->sessionExpiration)
-                ? (int) ini_get('session.gc_maxlifetime')
-                : (int) $config->sessionExpiration;
-            // Add sessionCookieName for multiple session cookies.
-            $this->keyPrefix .= $config->sessionCookieName . ':';
-        }
+        $this->sessionExpiration = empty($config->expiration)
+            ? (int) ini_get('session.gc_maxlifetime')
+            : $config->expiration;
+        // Add sessionCookieName for multiple session cookies.
+        $this->keyPrefix .= $config->cookieName . ':';
 
         $this->setSavePath();
 
@@ -102,20 +90,21 @@ class RedisHandler extends BaseHandler
             throw SessionException::forEmptySavepath();
         }
 
-        if (preg_match('#(?:tcp://)?([^:?]+)(?:\:(\d+))?(\?.+)?#', $this->savePath, $matches)) {
-            if (! isset($matches[3])) {
-                $matches[3] = ''; // Just to avoid undefined index notices below
+        if (preg_match('#(?:(tcp|tls)://)?([^:?]+)(?:\:(\d+))?(\?.+)?#', $this->savePath, $matches)) {
+            if (! isset($matches[4])) {
+                $matches[4] = ''; // Just to avoid undefined index notices below
             }
 
             $this->savePath = [
-                'host'     => $matches[1],
-                'port'     => empty($matches[2]) ? self::DEFAULT_PORT : $matches[2],
-                'password' => preg_match('#auth=([^\s&]+)#', $matches[3], $match) ? $match[1] : null,
-                'database' => preg_match('#database=(\d+)#', $matches[3], $match) ? (int) $match[1] : 0,
-                'timeout'  => preg_match('#timeout=(\d+\.\d+|\d+)#', $matches[3], $match) ? (float) $match[1] : 0.0,
+                'protocol' => ! empty($matches[1]) ? $matches[1] : self::DEFAULT_PROTOCOL,
+                'host'     => $matches[2],
+                'port'     => empty($matches[3]) ? self::DEFAULT_PORT : $matches[3],
+                'password' => preg_match('#auth=([^\s&]+)#', $matches[4], $match) ? $match[1] : null,
+                'database' => preg_match('#database=(\d+)#', $matches[4], $match) ? (int) $match[1] : 0,
+                'timeout'  => preg_match('#timeout=(\d+\.\d+|\d+)#', $matches[4], $match) ? (float) $match[1] : 0.0,
             ];
 
-            preg_match('#prefix=([^\s&]+)#', $matches[3], $match) && $this->keyPrefix = $match[1];
+            preg_match('#prefix=([^\s&]+)#', $matches[4], $match) && $this->keyPrefix = $match[1];
         } else {
             throw SessionException::forInvalidSavePathFormat($this->savePath);
         }
@@ -135,7 +124,7 @@ class RedisHandler extends BaseHandler
 
         $redis = new Redis();
 
-        if (! $redis->connect($this->savePath['host'], ($this->savePath['host'][0] === '/' ? 0 : $this->savePath['port']), $this->savePath['timeout'])) {
+        if (! $redis->connect($this->savePath['protocol'] . '://' . $this->savePath['host'], ($this->savePath['host'][0] === '/' ? 0 : $this->savePath['port']), $this->savePath['timeout'])) {
             $this->logger->error('Session: Unable to connect to Redis with the configured settings.');
         } elseif (isset($this->savePath['password']) && ! $redis->auth($this->savePath['password'])) {
             $this->logger->error('Session: Unable to authenticate to Redis instance.');
