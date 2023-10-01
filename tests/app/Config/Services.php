@@ -20,18 +20,15 @@ use Tomkirsch\Psession\Psession;
  */
 class Services extends BaseService
 {
-    public static function session(App $config = null, bool $getShared = true)
+    public static function session(Session $config = null, bool $getShared = true)
     {
-        $config ??= config('App');
+        $config ??= config('Session');
         if ($getShared) {
             return static::getSharedInstance('session', $config);
         }
 
-        /** @var Session|null $sessionConfig */
-        $sessionConfig = config('Session');
-
         $logger = static::logger();
-        $driverName = $sessionConfig->driver;
+        $driverName = $config->driver;
         $driver     = new $driverName($config, static::request()->getIpAddress());
         $driver->setLogger($logger);
 

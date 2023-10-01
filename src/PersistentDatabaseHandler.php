@@ -5,7 +5,7 @@ namespace Tomkirsch\Psession;
 use CodeIgniter\Session\Handlers\DatabaseHandler;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
-use Config\App as AppConfig;
+use Config\Session as SessionConfig;
 
 class PersistentDatabaseHandler extends DatabaseHandler
 {
@@ -33,7 +33,7 @@ class PersistentDatabaseHandler extends DatabaseHandler
 	protected bool $writeTokenFlag = FALSE;
 	protected $tokenId; // autoincrement ID of the token db row
 
-	public function __construct(AppConfig $config, string $ipAddress)
+	public function __construct(SessionConfig $config, string $ipAddress)
 	{
 		parent::__construct($config, $ipAddress);
 

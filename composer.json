@@ -2,17 +2,19 @@
     "name": "tomkirsch/psession",
     "type": "library",
     "description": "Persistent Session library for CI4",
-	"license": "MIT",
+    "license": "MIT",
     "require": {
         "php": ">=7.4",
-		"codeigniter4/framework": "^4.3"
+        "codeigniter4/framework": "^4.4"
     },
-	"autoload": {
+    "autoload": {
         "psr-4": {
             "Tomkirsch\\Psession\\": "src/"
         }
-	},
+    },
     "archive": {
-        "exclude": ["tests"]
-     }
+        "exclude": [
+            "tests"
+        ]
+    }
 }

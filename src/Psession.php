@@ -6,6 +6,7 @@ use CodeIgniter\Session\Session;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\Encryption\EncrypterInterface;
 use Config\App;
+use Config\Session as ConfigSession;
 use SessionHandlerInterface;
 
 class Psession extends Session
@@ -121,7 +122,7 @@ class Psession extends Session
 	 */
 	protected $driver;
 
-	public function __construct(SessionHandlerInterface $driver, App $config)
+	public function __construct(SessionHandlerInterface $driver, ConfigSession $config)
 	{
 		if (!$driver instanceof PersistentDatabaseHandler) {
 			throw new \Exception('Driver must be an instance of PersistentDatabaseHandler');
@@ -131,13 +132,13 @@ class Psession extends Session
 		$pConfig = config('PsessionConfig') ?? new PsessionConfig();
 		$this->debug = $pConfig->debug ?? FALSE;
 
+		// ensure certain session config elements are set properly for this lib to work
+		$config->sessionRegenerateDestroy 	= FALSE;
+		$config->sessionMatchIP 			= FALSE;
+		$config->sessionExpiration 			= 0;
+
 		// call parent constructor
 		parent::__construct($driver, $config);
-
-		// ensure certain session config elements are set properly for this lib to work
-		$this->sessionRegenerateDestroy 	= FALSE;
-		$this->sessionMatchIP 				= FALSE;
-		$this->sessionExpiration 			= 0;
 
 		$this->userIdCookie 			??= $pConfig->userIdCookie;
 		$this->tokenCookie 				??= $pConfig->tokenCookie;

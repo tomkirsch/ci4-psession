@@ -59,7 +59,7 @@ public string $savePath = 'YOUR_DB_TABLE';
 
 Copy `PsessionConfig.php` into `App\Config` and modify the values to suit your needs (table names, field names, etc)
 
-Ensure your encrytion ket is set in `app/Config/Encryption.php`:
+Ensure your encryption key is set in `app/Config/Encryption.php`:
 
 ```
 	public $key = 'some string';
@@ -70,18 +70,15 @@ Ensure your database connection it set up in .env
 Open up `app/config/Services.php` and overwrite the session function:
 
 ```
-	public static function session(App $config = null, bool $getShared = true)
+	public static function session(Session $config = null, bool $getShared = true)
     {
-        $config ??= config('App');
+        $config ??= config('Session');
         if ($getShared) {
             return static::getSharedInstance('session', $config);
         }
 
-        /** @var Session|null $sessionConfig */
-        $sessionConfig = config('Session');
-
         $logger = static::logger();
-        $driverName = $sessionConfig->driver;
+        $driverName = $config->driver;
         $driver     = new $driverName($config, static::request()->getIpAddress());
         $driver->setLogger($logger);
 

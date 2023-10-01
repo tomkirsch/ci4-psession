@@ -3,7 +3,7 @@
         'name' => 'tomkirsch/psession',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'f8b1b581f0e49bcb50a3872fb1f1ba2e0183bc23',
+        'reference' => '407fc0eb9d061e9b9cadb9d4d92ca1b7d8ad9f92',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -40,7 +40,7 @@
         'tomkirsch/psession' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'f8b1b581f0e49bcb50a3872fb1f1ba2e0183bc23',
+            'reference' => '407fc0eb9d061e9b9cadb9d4d92ca1b7d8ad9f92',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
