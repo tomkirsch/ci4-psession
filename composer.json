@@ -1,8 +1,7 @@
 {
     "name": "tomkirsch/psession",
-    "type": "library",
+    "type": "project",
     "description": "Persistent Session library for CI4",
-    "license": "MIT",
     "require": {
         "php": ">=7.4",
         "codeigniter4/framework": "^4.4"
