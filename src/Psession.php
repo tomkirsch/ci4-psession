@@ -132,11 +132,6 @@ class Psession extends Session
 		$pConfig = config('PsessionConfig') ?? new PsessionConfig();
 		$this->debug = $pConfig->debug ?? FALSE;
 
-		// ensure certain session config elements are set properly for this lib to work
-		$config->sessionRegenerateDestroy 	= FALSE;
-		$config->sessionMatchIP 			= FALSE;
-		$config->sessionExpiration 			= 0;
-
 		// call parent constructor
 		parent::__construct($driver, $config);
 
