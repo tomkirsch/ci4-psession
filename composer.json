@@ -3,8 +3,8 @@
     "type": "project",
     "description": "Persistent Session library for CI4",
     "require": {
-        "php": ">=7.4",
-        "codeigniter4/framework": "^4.4"
+        "php": "^8.2",
+        "codeigniter4/framework": "^4.7"
     },
     "autoload": {
         "psr-4": {

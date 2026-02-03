@@ -68,7 +68,7 @@ class PersistentDatabaseHandler extends DatabaseHandler
 	}
 
 	// (override) called when session_start() is run
-	public function read($sessionID)
+	public function read($sessionID): string|false
 	{
 		if (!$this->psession) throw new \Exception('Psession class was not created. Please overwrite Services::session() to return the Psession instance.');
 		$result = '';
@@ -161,7 +161,7 @@ class PersistentDatabaseHandler extends DatabaseHandler
 	}
 
 	// (override) garbage collection
-	public function gc($maxlifetime)
+	public function gc($maxlifetime): int|false
 	{
 		// clean up tokens
 
@@ -194,7 +194,7 @@ class PersistentDatabaseHandler extends DatabaseHandler
 			->groupEnd()
 			->delete();
 
-		return $result ? true : $this->fail();
+		return $result ? 1 : $this->fail();
 	}
 
 	// perform active record calls to get a session. Can be used to get session data in your App - see Psession::findSession()

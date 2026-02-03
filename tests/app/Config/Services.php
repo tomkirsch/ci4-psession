@@ -20,7 +20,7 @@ use Tomkirsch\Psession\Psession;
  */
 class Services extends BaseService
 {
-    public static function session(Session $config = null, bool $getShared = true)
+    public static function session(?Session $config = null, bool $getShared = true)
     {
         $config ??= config('Session');
         if ($getShared) {
